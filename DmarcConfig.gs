@@ -9,7 +9,7 @@
  */
 
 /** Seul numéro de version courant du projet ; le banc vérifie qu'il vaut le fichier VERSION. */
-const VERSION_DMARC = '1.8.0';
+const VERSION_DMARC = '1.9.0';
 
 /**
  * Identité du produit, affichée dans « À propos », l'onglet Aide et le pied

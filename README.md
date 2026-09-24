@@ -2,11 +2,11 @@
 
 [🇫🇷 Version française](#-version-française) | [🇬🇧 English version](#-english-version)
 
-[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)](CHANGELOG.md)
 [![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic--2.0-orange.svg)](LICENSE)
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?logo=google&logoColor=white)](https://developers.google.com/apps-script)
 [![Google Sheets](https://img.shields.io/badge/Google%20Sheets-34A853?logo=googlesheets&logoColor=white)](https://workspace.google.com/products/sheets/)
-[![Tests](https://img.shields.io/badge/tests-117%2F117%20pass-brightgreen)](banc/test.js)
+[![Tests](https://img.shields.io/badge/tests-120%2F120%20pass-brightgreen)](banc/test.js)
 
 ---
 
@@ -37,6 +37,7 @@ Pour le guide pas à pas d'installation et de mise en route, consultez [DEMARRAG
    - Détection, domaine par domaine et sur les rapports reçus en 24 h, des chutes de conformité (`SEUIL_ALERTE_CONFORMITE`) et des pics de rejets (`SEUIL_ALERTE_REJETS`) ; l'alerte indique la période que couvrent ces rapports.
    - Alerte de silence : un domaine qui ne reçoit plus aucun rapport depuis `JOURS_SANS_RAPPORT_ALERTE` jours (DNS supprimé, adresse `rua` cassée).
    - Notifications envoyées par courriel (`MailApp.sendEmail`) et/ou webhook HTTPS (Google Chat, Slack, Discord).
+   - Courriel mis en forme (depuis la v1.9.0) : une carte par anomalie, colorée selon sa gravité, avec le constat, la marche à suivre et les principales sources ; un bouton ouvre le classeur. Le pied de page donne le produit, l'auteur, son site et la version qui a tourné. Une version texte accompagne toujours le HTML, et les valeurs venues des rapports y sont échappées.
    - Période de carence (cooldown) de 24 h par domaine et par type d'alerte consignée dans `ScriptProperties` pour prévenir tout spam.
    - Lecture optimisée depuis le bas de l'onglet `Enregistrements` sans charger l'historique complet.
 
@@ -136,7 +137,7 @@ DmarcDns.gs             Contrôle des enregistrements DMARC, SPF et DKIM de chaq
 appsscript.json         Manifeste de l'application et portées OAuth minimales
 banc/
   faux-google.js        Simulateur des services Google (Sheets, Gmail, Drive, UrlFetch...)
-  test.js               Banc de tests unitaires automatisés Node.js (117 cas)
+  test.js               Banc de tests unitaires automatisés Node.js (120 cas)
 DEMARRAGE.md            Guide pas à pas de démarrage
 COMPRENDRE-DMARC.md     Guide pour débutants : SPF, DKIM, DMARC et lecture des rapports
 demo/                   Jeu de démonstration fictif (générateur, CSV à importer, chiffres attendus)
@@ -186,6 +187,7 @@ For step-by-step setup instructions, please refer to [DEMARRAGE.md](DEMARRAGE.md
    - Per-domain detection, over reports received in the last 24 h, of compliance drops (`SEUIL_ALERTE_CONFORMITE`) and rejection spikes (`SEUIL_ALERTE_REJETS`); the alert states the period those reports cover.
    - Silence alert: a domain that has received no report for `JOURS_SANS_RAPPORT_ALERTE` days (deleted DNS record, broken `rua` address).
    - Notifications dispatched via email (`MailApp.sendEmail`) and/or HTTPS webhooks (Google Chat, Slack, Discord).
+   - Formatted email (since v1.9.0): one card per anomaly, coloured by severity, with the finding, the next step and the main sources; a button opens the spreadsheet. The footer shows the product, its author, the author's website and the running version. A plain-text version always accompanies the HTML, and values taken from reports are escaped.
    - 24-hour cooldown per domain and alert type tracked in `ScriptProperties` to prevent alert fatigue.
    - Optimized bottom-up scanning of the `Enregistrements` sheet without reading entire historical data.
 

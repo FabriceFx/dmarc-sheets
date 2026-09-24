@@ -176,6 +176,163 @@ const corpsWebhook_ = (url, texte) => (/^https:\/\/(canary\.|ptb\.)?discord(app)
     : { text: texte });
 
 /**
+ * Présentation de chaque type d'alerte. Une couleur par gravité, reprise des
+ * couleurs d'état de Google : l'œil trie les cartes avant de les lire.
+ */
+const PRESENTATION_ALERTE_DMARC = Object.freeze({
+    SILENCE: { icone: '🔕', libelle: 'Aucun rapport reçu', couleur: '#5f6368', fond: '#f1f3f4' },
+    CONFORMITE_BASSE: { icone: '⚠️', libelle: 'Conformité en baisse', couleur: '#b06000', fond: '#fef7e0' },
+    PIC_REJETS: { icone: '🚨', libelle: 'Pic de rejets', couleur: '#c5221f', fond: '#fce8e6' }
+});
+
+/** Échappe une valeur pour le HTML : domaines et IP viennent de rapports envoyés par des tiers. */
+const echapperHtml_ = valeur => String(valeur).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;'
+}[c]));
+
+/** « 1 234 » : les volumes se lisent mieux groupés par milliers. */
+const nombreLisible_ = n => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+
+/** « 91,2 % » : la virgule décimale du français, dans les deux rendus. */
+const pourcentLisible_ = x => `${(x * 100).toFixed(1).replace('.', ',')}\u00a0%`;
+
+/**
+ * Décrit chaque anomalie une fois, sans mise en forme : le texte brut et le
+ * HTML en sont deux rendus. Deux constructions parallèles finiraient par ne
+ * plus dire la même chose.
+ */
+const blocsAlerte_ = (anomalies, parametres) => anomalies.map((a) => {
+    if (a.type === 'SILENCE') {
+        return {
+            type: a.type,
+            domaine: a.domaine === 'tous' ? 'Aucun domaine' : a.domaine,
+            periode: '',
+            constat: `aucun rapport reçu depuis ${parametres.JOURS_SANS_RAPPORT_ALERTE} jours `
+                + (a.dernier ? `(dernier reçu le ${dateLisible_(a.dernier)}).` : '(aucun jamais reçu).'),
+            conseil: 'Vérifiez l\'enregistrement DNS _dmarc (rua=) et l\'acheminement de l\'adresse '
+                + 'de réception jusqu\'au compte technique.',
+            sources: []
+        };
+    }
+    const periode = a.periode && a.periode.debut && a.periode.fin
+        ? `Rapports reçus ces dernières 24 heures, couvrant du ${dateLisible_(a.periode.debut)} `
+            + `au ${dateLisible_(a.periode.fin)}.`
+        : '';
+    if (a.type === 'CONFORMITE_BASSE') {
+        return {
+            type: a.type, domaine: a.domaine, periode,
+            constat: `conformité ${pourcentLisible_(a.taux)} `
+                + `(seuil ${pourcentLisible_(parametres.SEUIL_ALERTE_CONFORMITE)}) : `
+                + `${nombreLisible_(a.conforme)} messages conformes sur ${nombreLisible_(a.total)}.`,
+            conseil: 'Choisissez ce domaine en C4 du tableau de bord : le Top 15 dit quelles sources '
+                + 'autoriser (SPF, DKIM) et lesquelles laisser rejeter.',
+            sources: a.sources
+        };
+    }
+    // « Rejet » et non « usurpation » : un message rejeté peut aussi être
+    // un transfert ou une liste de diffusion légitime.
+    return {
+        type: a.type, domaine: a.domaine, periode,
+        constat: `pic de rejets : ${nombreLisible_(a.rejetes)} messages non conformes rejetés `
+            + `par les destinataires (seuil ${parametres.SEUIL_ALERTE_REJETS}), sur ${nombreLisible_(a.total)}.`,
+        conseil: 'Un rejet peut aussi frapper un message légitime (transfert, liste de diffusion) : '
+            + 'le tableau « DKIM cassé / absent » du tableau de bord fait la part des choses.',
+        sources: a.sources
+    };
+});
+
+/** Ligne de signature commune aux deux rendus. */
+const signatureAlerte_ = () =>
+    `${PRODUIT_DMARC.NOM} v${VERSION_DMARC} · ${PRODUIT_DMARC.AUTEUR} · ${PRODUIT_DMARC.SITE}`;
+
+const CONCLUSION_ALERTE_DMARC = 'Les seuils se règlent dans l\'onglet « Paramètres » du classeur ; '
+    + 'le tableau de bord détaille chaque source.';
+
+/** Rendu texte : messageries sans HTML, et webhook (Discord, Google Chat, Slack). */
+const texteAlerte_ = (blocs) => {
+    const lignes = ['Alerte DMARC', ''];
+    blocs.forEach((b) => {
+        if (b.periode) lignes.push(b.periode);
+        lignes.push(`${PRESENTATION_ALERTE_DMARC[b.type].icone} ${b.domaine} — ${b.constat}`);
+        lignes.push(`   ${b.conseil}`);
+        if (b.sources.length) {
+            lignes.push('   Principales sources non conformes :');
+            b.sources.forEach(([ip, vol]) => lignes.push(`     - ${ip} : ${nombreLisible_(vol)} messages`));
+        }
+        lignes.push('');
+    });
+    lignes.push(CONCLUSION_ALERTE_DMARC, '', `— ${signatureAlerte_()}`);
+    return lignes.join('\n');
+};
+
+/**
+ * Rendu HTML du courriel.
+ *
+ * Styles en ligne et mise en page en tableaux : Gmail et Outlook ignorent une
+ * bonne part des feuilles de style, et aucun ne charge de CSS externe. Fonds
+ * explicites partout, pour qu'un mode sombre ne rende pas le texte illisible.
+ */
+const htmlAlerte_ = (blocs, { classeur = '', url = '', date = new Date() } = {}) => {
+    const police = 'font-family:Roboto,Arial,Helvetica,sans-serif;';
+    const cartes = blocs.map((b) => {
+        const { icone, libelle, couleur, fond } = PRESENTATION_ALERTE_DMARC[b.type];
+        const sources = b.sources.length ? `
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:12px;border-collapse:collapse;${police}font-size:13px;">
+            <tr><td style="padding:6px 8px;border-bottom:1px solid #dadce0;color:#5f6368;">Principales sources non conformes</td>
+                <td align="right" style="padding:6px 8px;border-bottom:1px solid #dadce0;color:#5f6368;">Messages</td></tr>
+            ${b.sources.map(([ip, vol]) => `<tr>
+                <td style="padding:6px 8px;border-bottom:1px solid #f1f3f4;font-family:'Roboto Mono',Consolas,monospace;color:#202124;">${echapperHtml_(ip)}</td>
+                <td align="right" style="padding:6px 8px;border-bottom:1px solid #f1f3f4;color:#202124;">${nombreLisible_(vol)}</td></tr>`).join('')}
+          </table>` : '';
+        return `
+        <tr><td style="padding:0 24px 16px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-left:4px solid ${couleur};background:#ffffff;border-radius:4px;border-top:1px solid #dadce0;border-right:1px solid #dadce0;border-bottom:1px solid #dadce0;">
+            <tr><td style="padding:16px;${police}">
+              <span style="display:inline-block;padding:2px 10px;border-radius:12px;background:${fond};color:${couleur};font-size:12px;font-weight:bold;">${icone} ${libelle}</span>
+              <div style="margin-top:8px;font-size:18px;font-weight:bold;color:#202124;">${echapperHtml_(b.domaine)}</div>
+              ${b.periode ? `<div style="margin-top:4px;font-size:12px;color:#5f6368;">${echapperHtml_(b.periode)}</div>` : ''}
+              <p style="margin:10px 0 0;font-size:14px;line-height:20px;color:#202124;">${echapperHtml_(b.constat.charAt(0).toUpperCase() + b.constat.slice(1))}</p>
+              <p style="margin:8px 0 0;font-size:13px;line-height:19px;color:#5f6368;">→ ${echapperHtml_(b.conseil)}</p>
+              ${sources}
+            </td></tr>
+          </table>
+        </td></tr>`;
+    }).join('');
+
+    const bouton = url ? `
+        <tr><td align="center" style="padding:8px 24px 20px;">
+          <a href="${echapperHtml_(url)}" style="display:inline-block;padding:10px 24px;border-radius:4px;background:#1a73e8;color:#ffffff;text-decoration:none;${police}font-size:14px;font-weight:bold;">Ouvrir le tableau de bord</a>
+        </td></tr>` : '';
+    const nombre = blocs.length > 1 ? `${blocs.length} anomalies détectées` : '1 anomalie détectée';
+    const origine = classeur ? ` par le classeur « ${echapperHtml_(classeur)} »` : '';
+
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Alerte DMARC</title></head>
+<body style="margin:0;padding:0;background:#f1f3f4;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f1f3f4;">
+    <tr><td align="center" style="padding:24px 8px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#f8f9fa;border-radius:8px;overflow:hidden;">
+        <tr><td style="padding:20px 24px;background:#1a73e8;${police}">
+          <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#d2e3fc;">${echapperHtml_(PRODUIT_DMARC.NOM)}</div>
+          <div style="margin-top:4px;font-size:22px;font-weight:bold;color:#ffffff;">Alerte DMARC</div>
+          <div style="margin-top:4px;font-size:13px;color:#e8f0fe;">${nombre} le ${dateLisible_(date)}</div>
+        </td></tr>
+        <tr><td style="height:20px;line-height:20px;">&nbsp;</td></tr>
+        ${cartes}
+        ${bouton}
+        <tr><td style="padding:0 24px 20px;${police}font-size:13px;line-height:19px;color:#5f6368;">${echapperHtml_(CONCLUSION_ALERTE_DMARC)}</td></tr>
+        <tr><td style="padding:16px 24px;background:#e8eaed;${police}font-size:12px;line-height:18px;color:#5f6368;">
+          <strong style="color:#202124;">${echapperHtml_(PRODUIT_DMARC.NOM)}</strong> · version ${echapperHtml_(VERSION_DMARC)}<br>
+          ${echapperHtml_(PRODUIT_DMARC.AUTEUR)} · <a href="${echapperHtml_(PRODUIT_DMARC.SITE)}" style="color:#1a73e8;text-decoration:none;">${echapperHtml_(PRODUIT_DMARC.SITE.replace(/^https?:\/\//, ''))}</a><br>
+          <span style="color:#80868b;">Courriel envoyé automatiquement${origine}.</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+};
+
+/**
  * Construit et expédie les alertes des anomalies hors délai de 24 h.
  *
  * Rend `{ domaines, canaux, echecs }`, ou null s'il n'y avait rien à envoyer.
@@ -191,48 +348,16 @@ const envoyerAlertesSiNecessaire_ = (ss, parametres, domainesSurveilles = new Se
     const destinataire = proprietes.getProperty(CONFIG_DMARC.CLE_EMAIL_ALERTE) || CONFIG_DMARC.COMPTE_TECHNIQUE;
     const webhookUrl = proprietes.getProperty(CONFIG_DMARC.CLE_WEBHOOK_ALERTE) || '';
 
-    const lignes = ['Alerte DMARC', ''];
-    aNotifier.forEach((a) => {
-        if (a.type === 'SILENCE') {
-            const quoi = a.domaine === 'tous' ? 'Aucun domaine' : a.domaine;
-            lignes.push(`🔕 ${quoi} — aucun rapport reçu depuis ${parametres.JOURS_SANS_RAPPORT_ALERTE} jours `
-                + (a.dernier ? `(dernier reçu le ${dateLisible_(a.dernier)}).` : '(aucun jamais reçu).'));
-            lignes.push('   Vérifiez l\'enregistrement DNS _dmarc (rua=) et l\'acheminement de l\'adresse '
-                + 'de réception jusqu\'au compte technique.');
-            lignes.push('');
-            return;
-        }
-        if (a.periode && a.periode.debut && a.periode.fin) {
-            lignes.push(`Rapports reçus ces dernières 24 heures, couvrant du ${dateLisible_(a.periode.debut)} `
-                + `au ${dateLisible_(a.periode.fin)} :`);
-        }
-        if (a.type === 'CONFORMITE_BASSE') {
-            lignes.push(`⚠️ ${a.domaine} — conformité ${(a.taux * 100).toFixed(1)} % `
-                + `(seuil ${(parametres.SEUIL_ALERTE_CONFORMITE * 100).toFixed(1)} %) : `
-                + `${a.conforme} messages conformes sur ${a.total}.`);
-        } else {
-            // « Rejet » et non « usurpation » : un message rejeté peut aussi être
-            // un transfert ou une liste de diffusion légitime.
-            lignes.push(`🚨 ${a.domaine} — pic de rejets : ${a.rejetes} messages non conformes rejetés `
-                + `par les destinataires (seuil ${parametres.SEUIL_ALERTE_REJETS}), sur ${a.total}.`);
-        }
-        if (a.sources.length) {
-            lignes.push('   Principales sources non conformes :');
-            a.sources.forEach(([ip, vol]) => lignes.push(`     - ${ip} : ${vol} messages`));
-        }
-        lignes.push('');
-    });
-    lignes.push('Les seuils se règlent dans l\'onglet « Paramètres » du classeur ; '
-        + 'le tableau de bord détaille chaque source.');
-    lignes.push('', `— Rapports DMARC v${VERSION_DMARC}`);
-    const corps = lignes.join('\n');
+    const blocs = blocsAlerte_(aNotifier, parametres);
+    const corps = texteAlerte_(blocs);
+    const corpsHtml = htmlAlerte_(blocs, { classeur: ss.getName(), url: ss.getUrl(), date: new Date(maintenant) });
     const domaines = [...new Set(aNotifier.map(a => a.domaine))];
     const sujet = `[DMARC] Anomalie sur ${domaines.join(', ')}`;
 
     const canaux = [];
     const echecs = [];
     try {
-        MailApp.sendEmail({ to: destinataire, subject: sujet, body: corps });
+        MailApp.sendEmail({ to: destinataire, subject: sujet, body: corps, htmlBody: corpsHtml, name: PRODUIT_DMARC.NOM });
         canaux.push(`courriel à ${destinataire}`);
     } catch (e) {
         echecs.push(`courriel à ${destinataire} : ${e.message || e}`);

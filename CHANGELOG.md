@@ -3,6 +3,33 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Ce projet suit le [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.9.0] - 2026-09-24
+
+### Modifié
+
+- **Courriel d'alerte mis en forme.** Une carte par anomalie, bordée de la
+  couleur de sa gravité (gris : silence, orange : conformité en baisse,
+  rouge : pic de rejets), avec le domaine, la période couverte, le constat,
+  la marche à suivre et le tableau des principales sources non conformes. Un
+  bouton « Ouvrir le tableau de bord » mène au classeur. Styles en ligne et
+  mise en page en tableaux, seules formes que Gmail et Outlook respectent.
+- **Pied de page** : nom du produit, auteur, site web et version. L'expéditeur
+  affiché est « Rapports DMARC ».
+- Chaque alerte dit désormais **quoi faire**, y compris pour la conformité en
+  baisse et le pic de rejets, qui n'en disaient rien.
+- Pourcentages à la française (« 91,2 % ») et volumes groupés par milliers,
+  dans le courriel comme dans le webhook.
+- Nom du produit, auteur et site regroupés dans la constante `PRODUIT_DMARC`,
+  reprise par « À propos », l'onglet Aide et les alertes.
+- Le **texte brut** accompagne toujours le HTML (messageries sans HTML,
+  aperçus de notification) et reste le contenu du webhook. Les deux rendus
+  viennent de la même description des anomalies et disent la même chose.
+
+### Sécurité
+
+- Le HTML échappe toute valeur issue d'un rapport (domaine, IP source) :
+  l'émetteur d'un rapport écrit ce qu'il veut dans ces champs.
+
 ## [1.8.0] - 2026-09-24
 
 ### Ajouté

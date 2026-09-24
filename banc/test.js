@@ -1690,6 +1690,52 @@ const comparerVersions = (a, b) => {
     return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
 };
 
+/* --------------------------------------------------------------------------
+ * v1.9.0 — courriel d'alerte mis en forme
+ * ----------------------------------------------------------------------- */
+
+test('courriel d\'alerte : HTML et texte, pied avec produit, auteur, site et version', () => {
+    const p = chargerProjet();
+    poserRapport(p, { id: 'hier', enregistrements: [['198.51.100.1', 1500, 'reject', 'fail', 'fail']] });
+    alerter(p);
+    const [courriel] = p.emailsEnvoyes;
+    const produit = p.lire('PRODUIT_DMARC');
+    const version = p.lire('VERSION_DMARC');
+
+    // Le texte brut reste : messageries sans HTML, aperçu des notifications.
+    assert.strictEqual(typeof courriel.body, 'string');
+    assert.strictEqual(typeof courriel.htmlBody, 'string');
+    assert.strictEqual(courriel.name, produit.NOM);
+    [courriel.body, courriel.htmlBody].forEach((corps) => {
+        [produit.NOM, produit.AUTEUR, version].forEach(attendu => assert.ok(corps.includes(attendu), attendu));
+    });
+    assert.ok(courriel.body.includes(produit.SITE));
+    assert.match(courriel.htmlBody, new RegExp(`href="${produit.SITE}"`));
+    // Les deux rendus disent la même chose : ils viennent des mêmes blocs.
+    assert.match(courriel.htmlBody, /Pic de rejets : 1 500 messages/);
+    assert.match(courriel.body, /pic de rejets : 1 500 messages/);
+    assert.match(courriel.htmlBody, /href="https:\/\/docs\.google\.com\/spreadsheets\/d\/classeur-de-test\/edit"/);
+    assert.doesNotMatch(courriel.htmlBody, /usurpation/i);
+    assert.doesNotMatch(courriel.body, /\d\.\d\s?%/, 'pourcentage à l\'anglaise');
+});
+
+test('courriel d\'alerte : une valeur venue d\'un rapport est échappée dans le HTML', () => {
+    // L'IP source est écrite par l'émetteur du rapport, donc par n'importe qui.
+    const p = chargerProjet();
+    poserRapport(p, { id: 'hostile', enregistrements: [['<img src=x onerror=alert(1)>', 50, 'reject', 'fail', 'fail']] });
+    alerter(p);
+    const { htmlBody } = p.emailsEnvoyes[0];
+    assert.ok(!htmlBody.includes('<img'), 'balise injectée telle quelle');
+    assert.ok(htmlBody.includes('&lt;img src=x onerror=alert(1)&gt;'));
+});
+
+test('le nom et l\'adresse de l\'auteur ne sont écrits qu\'une fois, dans PRODUIT_DMARC', () => {
+    const code = fs.readdirSync(RACINE).filter(f => f.endsWith('.gs'))
+        .map(f => fs.readFileSync(path.join(RACINE, f), 'utf8').replace(/const PRODUIT_DMARC[\s\S]*?\}\);/, ''))
+        .join('\n');
+    assert.doesNotMatch(code, /faucheux\.bzh|Fabrice Faucheux/);
+});
+
 test('le CHANGELOG commence par VERSION, sans doublon et dans l\'ordre décroissant', () => {
     const versions = versionsDuJournal();
     const version = fs.readFileSync(path.join(RACINE, 'VERSION'), 'utf8').trim();
