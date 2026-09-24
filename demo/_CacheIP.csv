@@ -1,0 +1,17 @@
+ip,affichage,statut,hote,operateur,mis_a_jour
+203.0.113.10,smtp.laiterie.example (vérifié),confirme,smtp.laiterie.example,,2026-09-24 00:00:00
+203.0.113.11,smtp.laiterie.example (vérifié),confirme,smtp.laiterie.example,,2026-09-24 00:00:00
+203.0.113.12,smtp.laiterie.example (vérifié),confirme,smtp.laiterie.example,,2026-09-24 00:00:00
+203.0.113.13,smtp.laiterie.example (vérifié),confirme,smtp.laiterie.example,,2026-09-24 00:00:00
+198.51.100.20,mta.lettre-pro.example (vérifié),confirme,mta.lettre-pro.example,,2026-09-24 00:00:00
+192.0.2.50,mx.cooperative-client.example (vérifié),confirme,mx.cooperative-client.example,,2026-09-24 00:00:00
+192.0.2.80,filtre.passerelle-securite.example (vérifié),confirme,filtre.passerelle-securite.example,,2026-09-24 00:00:00
+192.0.2.81,filtre.passerelle-securite.example (vérifié),confirme,filtre.passerelle-securite.example,,2026-09-24 00:00:00
+192.0.2.82,filtre.passerelle-securite.example (vérifié),confirme,filtre.passerelle-securite.example,,2026-09-24 00:00:00
+192.0.2.120,relais.distributeur.example (vérifié),confirme,relais.distributeur.example,,2026-09-24 00:00:00
+198.51.100.60,envoi.crm-saas.example (vérifié),confirme,envoi.crm-saas.example,,2026-09-24 00:00:00
+198.51.100.201,NON VÉRIFIÉ : mail.banque-fictive.example ne renvoie pas vers cette IP,non_confirme,mail.banque-fictive.example,,2026-09-24 00:00:00
+198.51.100.202,Aucun nom d'hôte (pas de PTR),absent,,,2026-09-24 00:00:00
+198.51.100.203,Aucun nom d'hôte (pas de PTR),absent,,,2026-09-24 00:00:00
+198.51.100.204,Aucun nom d'hôte (pas de PTR),absent,,,2026-09-24 00:00:00
+198.51.100.205,Aucun nom d'hôte (pas de PTR),absent,,,2026-09-24 00:00:00

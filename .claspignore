@@ -1,0 +1,15 @@
+# Ignorer tout sauf les fichiers du projet Apps Script
+**/**
+
+# Fichiers à inclure dans le projet Apps Script
+!appsscript.json
+!Dmarc*.gs
+
+# Exclusions explicites
+banc/**
+origine/**
+*.md
+LICENSE
+VERSION
+.gitignore
+.claspignore

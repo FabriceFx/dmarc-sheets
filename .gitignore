@@ -1,0 +1,22 @@
+# Clasp & secrets
+.clasp.json
+.clasprc.json
+
+# Node & dépendances
+node_modules/
+package-lock.json
+
+# Système & OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Fichiers temporaires & archives locales
+*.log
+/tmp/
+origine/
+
+# Documents de travail internes : volumes de production et analyses propres à
+# l'organisation. À garder hors d'un dépôt public.
+RAPPORT-REVUE.md
