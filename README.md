@@ -2,11 +2,11 @@
 
 [🇫🇷 Version française](#-version-française) | [🇬🇧 English version](#-english-version)
 
-[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](CHANGELOG.md)
 [![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic--2.0-orange.svg)](LICENSE)
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?logo=google&logoColor=white)](https://developers.google.com/apps-script)
 [![Google Sheets](https://img.shields.io/badge/Google%20Sheets-34A853?logo=googlesheets&logoColor=white)](https://workspace.google.com/products/sheets/)
-[![Tests](https://img.shields.io/badge/tests-109%2F109%20pass-brightgreen)](banc/test.js)
+[![Tests](https://img.shields.io/badge/tests-117%2F117%20pass-brightgreen)](banc/test.js)
 
 ---
 
@@ -70,6 +70,11 @@ Pour le guide pas à pas d'installation et de mise en route, consultez [DEMARRAG
    - Bilan horodaté de chaque passage (déclencheur, menu, purge), passages sautés et échecs compris ; borné à 500 lignes.
    - En tête du tableau de bord : heure du dernier passage et du dernier rapport enregistré. Un dernier passage de plus d'une heure signale un déclencheur arrêté.
 
+9. **Contrôle des enregistrements DNS (v1.8.0)** :
+   - Pour chaque domaine de l'onglet **Domaines** : **DMARC** (présent, unique, politique, rapports bien envoyés à une adresse relevée par l'outil, autorisation d'un domaine externe de réception), **SPF** (unique, **nombre de consultations DNS** `include:` imbriqués compris, limite de 10, terminaison `-all` / `~all` / `?all` / `+all`), **DKIM** (clés publiées pour les sélecteurs courants ou ceux de la colonne `selecteurs_dkim`, clés révoquées).
+   - Résultat dans l'onglet **Contrôle DNS** : un statut par point (OK, Info, Attention, Problème), le constat et la marche à suivre. Une panne DNS donne « Non vérifié », jamais « Problème ».
+   - Refait chaque jour par le traitement horaire, et à la demande : *DMARC > Contrôler les enregistrements DNS*.
+
 ### Prérequis
 
 - Un compte Google Workspace technique dédié (ex. `dmarc-bot@example.com`) recevant les flux `rua`.
@@ -127,10 +132,11 @@ DmarcMenu.gs            Menus personnalisés, déclencheurs et dialogue À propo
 DmarcDomaines.gs        Onglet « Domaines » : adresses de réception et domaines acceptés
 DmarcJournal.gs         Onglet « Journal » : bilan horodaté de chaque passage
 DmarcAide.gs            Onglet « Aide » : DMARC expliqué aux débutants, rôle de chaque onglet
+DmarcDns.gs             Contrôle des enregistrements DMARC, SPF et DKIM de chaque domaine
 appsscript.json         Manifeste de l'application et portées OAuth minimales
 banc/
   faux-google.js        Simulateur des services Google (Sheets, Gmail, Drive, UrlFetch...)
-  test.js               Banc de tests unitaires automatisés Node.js (109 cas)
+  test.js               Banc de tests unitaires automatisés Node.js (117 cas)
 DEMARRAGE.md            Guide pas à pas de démarrage
 COMPRENDRE-DMARC.md     Guide pour débutants : SPF, DKIM, DMARC et lecture des rapports
 demo/                   Jeu de démonstration fictif (générateur, CSV à importer, chiffres attendus)
@@ -212,6 +218,11 @@ For step-by-step setup instructions, please refer to [DEMARRAGE.md](DEMARRAGE.md
 8. **"Journal" Sheet (v1.3.0)**:
    - Timestamped summary of every run (trigger, menu, purge), including skipped runs and failures; capped at 500 rows.
    - Dashboard header shows the last run and the last recorded report. A last run older than one hour means the trigger has stopped.
+
+9. **DNS Record Checks (v1.8.0)**:
+   - For every domain in the **Domaines** sheet: **DMARC** (present, unique, policy, reports sent to an address the tool collects, external reporting-domain authorization), **SPF** (unique, **DNS lookup count** including nested `include:`, 10-lookup limit, `-all` / `~all` / `?all` / `+all` ending), **DKIM** (keys published for common selectors or those listed in the `selecteurs_dkim` column, revoked keys).
+   - Results in the **Contrôle DNS** sheet: one status per check (OK, Info, Attention, Problème), the finding and what to do. A DNS failure reads « Non vérifié », never « Problème ».
+   - Refreshed daily by the hourly run, and on demand: *DMARC > Contrôler les enregistrements DNS*.
 
 ### Prerequisites
 

@@ -122,6 +122,14 @@ class FaussePlage {
     setBorder() { return this; }
     setHorizontalAlignment() { return this; }
     setBackground() { return this; }
+    /** Comme le vrai : un tableau 2D aux dimensions de la plage ; null rétablit le fond par défaut. */
+    setBackgrounds(couleurs) {
+        this.verifierDimensions('backgrounds', couleurs);
+        couleurs.forEach((ligne, dl) => ligne.forEach((c, dc) => {
+            this.feuille.fonds.set(`${this.ligne + dl},${this.colonne + dc}`, c);
+        }));
+        return this;
+    }
     setFontColor() { return this; }
     setFontSize() { return this; }
     setNumberFormat() { return this; }
@@ -183,6 +191,7 @@ class FausseFeuille {
         this.validations = new Map(); // 'ligne,colonne' → règle de validation
         this.formules = new Map(); // 'ligne,colonne' → formule posée
         this.erreursAnalyse = new Map(); // 'ligne,colonne' → message, comme la cellule #ERROR!
+        this.fonds = new Map(); // 'ligne,colonne' → couleur de fond
         this.classeur = null;
         this.masquee = false;
         this.maxLignes = 1000; // grille d'un onglet neuf
@@ -289,6 +298,8 @@ class FauxClasseur {
         this.feuilles = new Map(); this.active = null; this.langue = langue;
         this.historiqueLangues = [langue];
     }
+    getName() { return 'Rapports DMARC — test'; }
+    getUrl() { return 'https://docs.google.com/spreadsheets/d/classeur-de-test/edit'; }
     getSpreadsheetLocale() { return this.langue; }
     setSpreadsheetLocale(langue) {
         if (typeof langue !== 'string' || !/^[a-z]{2}(_[A-Z]{2})?$/.test(langue)) {
@@ -548,7 +559,7 @@ const ZONE_DNS_DEFAUT = {
     '5.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa': { PTR: ['mx.exemple.fr.'] },
     'mx.exemple.fr': { AAAA: ['2001:0db8:0000:0000:0000:0000:0000:0025'] }
 };
-const TYPES_DNS = { A: 1, PTR: 12, AAAA: 28 };
+const TYPES_DNS = { A: 1, PTR: 12, TXT: 16, AAAA: 28 };
 
 /** Portées OAuth déclarées par le manifeste du projet. */
 const porteesDuManifeste = () => {

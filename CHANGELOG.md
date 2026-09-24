@@ -3,6 +3,48 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Ce projet suit le [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.8.0] - 2026-09-24
+
+### Ajouté
+
+- **Contrôle des enregistrements DNS de chaque domaine** (`DmarcDns.gs`,
+  onglet « Contrôle DNS »). Les rapports disent ce qui s'est passé ; le DNS
+  dit ce que le domaine demande. Pour chaque domaine de l'onglet Domaines :
+  - **DMARC** : présence et unicité, politique (`p=none` signalé comme une
+    information), `pct`. Le contrôle vérifie que les rapports partent bien
+    vers une adresse relevée par l'outil, faute de quoi il ne verrait rien. Si
+    l'adresse de réception est dans un autre domaine, il vérifie que ce
+    domaine a publié son autorisation (RFC 7489 § 7.1), faute de quoi les
+    émetteurs n'envoient pas de rapport.
+  - **SPF** : unicité, et **décompte des consultations DNS**, `include:` et
+    `redirect=` imbriqués compris, face à la limite de 10 (RFC 7208). Au-delà,
+    le SPF échoue chez tous les destinataires. Un décompte interrompu est
+    présenté comme un minimum (« au moins 12 »). Sont aussi signalés la
+    terminaison (`+all` et `?all`), le mécanisme `ptr` déconseillé et les
+    `include:` sans SPF.
+  - **DKIM** : clés publiées pour les sélecteurs courants, ou pour ceux de la
+    nouvelle colonne `selecteurs_dkim` de l'onglet Domaines, et clés
+    révoquées (`p=` vide). Un sélecteur étant libre, l'absence de clé parmi les
+    sélecteurs courants est une « Attention », pas un « Problème ».
+- Chaque point reçoit un statut (OK, Info, Attention, Problème), un constat,
+  une marche à suivre et l'enregistrement lu. **Une panne DNS donne « Non
+  vérifié », jamais « Problème ».** L'onglet ne contient que des valeurs, donc
+  aucune dépendance à la langue du classeur.
+- Refait **chaque jour** par le traitement horaire, avec un résumé dans le
+  bilan, et **à la demande** (*DMARC > Contrôler les enregistrements DNS*).
+- L'onglet Aide et le guide de démarrage expliquent l'onglet et la colonne
+  `selecteurs_dkim`.
+
+### Tests
+
+- 117 cas, 8 de plus, sur une zone DNS simulée : un domaine sain, chaque
+  défaut connu, une autorisation externe, une panne, des sélecteurs
+  indiqués, l'onglet (valeurs seulement, couleurs, réécriture), la cadence
+  quotidienne et le menu. Les 8 défauts correspondants ont été réintroduits
+  un à un ; le banc les a tous détectés.
+- Essai contre le vrai DNS sur deux domaines publics : le décompte du SPF et
+  la lecture des clés DKIM concordent avec les enregistrements publiés.
+
 ## [1.7.2] - 2026-09-24
 
 Préparation d'une présentation publique.

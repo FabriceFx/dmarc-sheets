@@ -135,6 +135,16 @@ function traiterRapportsDmarc(e) {
             } catch (e) {
                 console.error(`Erreur de résolution des noms d'hôte : ${e}`);
             }
+            // Contrôle DNS des domaines, une fois par jour (DmarcDns.gs).
+            if (domaines.size) {
+                try {
+                    const resumeDns = controlerDnsSiDu_(ss);
+                    if (resumeDns) annexes.push(resumeDns);
+                } catch (e) {
+                    console.error(`Contrôle DNS : ${e}`);
+                    annexes.push(`Contrôle DNS en échec : ${e.message || e}`);
+                }
+            }
             let parametres = null;
             try {
                 const lus = lireParametres_(ss);

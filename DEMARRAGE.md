@@ -145,6 +145,12 @@ le XML brut disparaît avec le fil, 30 jours après sa mise à la corbeille.
 - **Une alerte de silence** (« aucun rapport reçu depuis N jours ») : vérifiez
   l'enregistrement DNS `_dmarc` du domaine et l'acheminement de l'adresse `rua`
   jusqu'au compte technique.
+- **Vérifier la configuration DNS de vos domaines** : *DMARC > Contrôler les
+  enregistrements DNS*, puis l'onglet « Contrôle DNS ». Le contrôle est aussi
+  refait chaque jour. Pour DKIM, indiquez vos sélecteurs dans la colonne
+  `selecteurs_dkim` de l'onglet Domaines (le sélecteur se lit dans l'en-tête
+  `DKIM-Signature`, balise `s=`, d'un e-mail envoyé) ; sans eux, seuls les
+  sélecteurs courants sont essayés.
 - **Un doute sur un onglet, un libellé ou un chiffre** : *DMARC > Aide* ouvre
   l'onglet « Aide », qui explique chaque onglet et chaque libellé, ainsi que
   les bases de SPF, DKIM et DMARC.

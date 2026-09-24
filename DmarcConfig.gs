@@ -9,7 +9,19 @@
  */
 
 /** Seul numéro de version courant du projet ; le banc vérifie qu'il vaut le fichier VERSION. */
-const VERSION_DMARC = '1.7.2';
+const VERSION_DMARC = '1.8.0';
+
+/**
+ * Identité du produit, affichée dans « À propos », l'onglet Aide et le pied
+ * des alertes. Un seul endroit : trois copies d'une adresse finissent par
+ * diverger.
+ */
+const PRODUIT_DMARC = Object.freeze({
+    NOM: 'Rapports DMARC',
+    AUTEUR: 'Fabrice Faucheux',
+    SITE: 'https://faucheux.bzh',
+    DEPOT: 'https://github.com/FabriceFx/dmarc-sheets'
+});
 
 const CONFIG_DMARC = Object.freeze({
     COMPTE_TECHNIQUE: 'dmarc-bot@example.com',
@@ -26,6 +38,7 @@ const CONFIG_DMARC = Object.freeze({
     ONGLET_DOMAINES: 'Domaines',
     ONGLET_JOURNAL: 'Journal',
     ONGLET_AIDE: 'Aide',
+    ONGLET_DNS: 'Contrôle DNS',
     // Au-delà, les plus anciennes lignes du Journal sont retirées.
     MAX_LIGNES_JOURNAL: 500,
     ONGLET_RAPPORTS: 'Rapports',

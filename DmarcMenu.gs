@@ -19,6 +19,7 @@ function onOpen() {
             .addItem('Configurer le dossier d\'archivage Drive', 'configurerDossierArchive')
             .addItem('Configurer les alertes proactives', 'configurerAlertes')
             .addItem('Archiver et purger les données anciennes', 'purgerDepuisMenu')
+            .addItem('Contrôler les enregistrements DNS', 'controlerDnsDepuisMenu')
             .addSeparator()
             .addItem('Aide', 'afficherAide')
             .addItem('À propos', 'aProposDmarc')
@@ -257,7 +258,7 @@ function purgerDepuisMenu() {
 function aProposDmarc() {
     try {
         const ui = SpreadsheetApp.getUi();
-        ui.alert(`Rapports DMARC — v${VERSION_DMARC}`, [
+        ui.alert(`${PRODUIT_DMARC.NOM} — v${VERSION_DMARC}`, [
             'Lit les rapports DMARC agrégés reçus par le compte technique, les range dans les '
                 + `onglets « ${CONFIG_DMARC.ONGLET_RAPPORTS} » et « ${CONFIG_DMARC.ONGLET_ENREG} », `
                 + 'puis met le fil à la corbeille.',
@@ -273,7 +274,7 @@ function aProposDmarc() {
             'Taux de conformité : part des messages dont DKIM ou SPF passe ET est aligné sur le '
                 + 'domaine de l\'en-tête From — c\'est la définition même de DMARC.',
             '',
-            'Fabrice Faucheux — https://faucheux.bzh'
+            `${PRODUIT_DMARC.AUTEUR} — ${PRODUIT_DMARC.SITE}`
         ].join('\n'), ui.ButtonSet.OK);
     } catch (e) {
         console.error(`Erreur À propos : ${e}`);

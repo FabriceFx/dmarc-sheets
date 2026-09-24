@@ -1137,7 +1137,7 @@ test('l\'aide explique chaque onglet et chaque libellé Gmail que le script cré
     const c = p.lire('CONFIG_DMARC');
     const t = p.lire('TABLEAU_DMARC');
     [t.FEUILLE, t.DONNEES, c.ONGLET_DOMAINES, c.ONGLET_PARAMETRES, c.ONGLET_JOURNAL, c.ONGLET_RAPPORTS,
-        c.ONGLET_ENREG, c.ONGLET_CACHE_IP, c.ONGLET_AIDE, c.ERROR_LABEL, c.LABEL_HORS_LISTE]
+        c.ONGLET_ENREG, c.ONGLET_CACHE_IP, c.ONGLET_AIDE, c.ONGLET_DNS, c.ERROR_LABEL, c.LABEL_HORS_LISTE]
         .forEach(nom => assert.ok(intitules.has(nom), `« ${nom} » n'est pas expliqué dans l'aide`));
 });
 
@@ -1552,6 +1552,131 @@ test('le jeu de démonstration est reproductible et son diagnostic est celui de 
         l[col('dkim_resultats')], detailles.has(l[col('cle')]))));
     // Aucun identifiant numérique : il serait converti en nombre à l'import CSV.
     lignes.forEach(l => assert.doesNotMatch(l[col('report_id')], /^\d+$/));
+});
+
+/* --------------------------------------------------------------------------
+ * v1.8.0 — contrôle des enregistrements DNS de chaque domaine
+ * ----------------------------------------------------------------------- */
+
+/** Chaîne de 12 include: pour dépasser la limite de 10 consultations. */
+const chaineSpf = Object.fromEntries(Array.from({ length: 12 }, (_, i) =>
+    [`i${i}.example`, { TXT: [i < 11 ? `v=spf1 include:i${i + 1}.example -all` : 'v=spf1 ip4:192.0.2.99 -all'] }]));
+
+const ZONE_DNS_TEST = {
+    // Domaine sain
+    'example.net': { TXT: ['google-site-verification=abc', 'v=spf1 include:_spf.envoi.example ip4:192.0.2.1 -all'] },
+    '_spf.envoi.example': { TXT: ['v=spf1 ip4:198.51.100.0/24 ~all'] },
+    // Casse et suffixe de taille (!10m) : l'adresse doit être reconnue quand même.
+    '_dmarc.example.net': { TXT: ['v=DMARC1; p=reject; rua=mailto:DMARC@example.net!10m'] },
+    'google._domainkey.example.net': { TXT: ['v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0B'] },
+    'monsel._domainkey.example.net': { TXT: ['k=rsa; p=MIGfMA0GCSqG'] },
+    // Domaine qui cumule les défauts
+    'mauvais.example': { TXT: ['v=spf1 include:i0.example ptr +all'] },
+    ...chaineSpf,
+    '_dmarc.mauvais.example': { TXT: ['v=DMARC1; p=none; rua=mailto:rapports@prestataire.example'] },
+    'selector1._domainkey.mauvais.example': { TXT: ['v=DKIM1; p='] },
+    // Deux SPF, pas de DMARC
+    'double.example': { TXT: ['v=spf1 -all', 'v=spf1 ip4:192.0.2.9 -all'] },
+    // rua vers un domaine externe qui a publié son autorisation
+    'externe-ok.example': { TXT: ['v=spf1 -all'] },
+    '_dmarc.externe-ok.example': { TXT: ['v=DMARC1; p=quarantine; pct=50; rua=mailto:dmarc@example.net'] },
+    'externe-ok.example._report._dmarc.example.net': { TXT: ['v=DMARC1'] }
+};
+
+/** Projet dont l'onglet Domaines liste `domaines`, avec l'adresse de l'outil dmarc@example.net. */
+const projetDns = (domaines, options = {}) => {
+    const p = chargerProjet({ zoneDns: ZONE_DNS_TEST, adresses: ['dmarc@example.net'], ...options });
+    const sh = p.classeur.getSheetByName('Domaines');
+    domaines.forEach(([d, sel = '']) => sh.appendRow([d, '', '', sel]));
+    return p;
+};
+const controler = p => p.lire('controlerDnsDomaines_(SpreadsheetApp.getActiveSpreadsheet())');
+const constatsDns = p => p.classeur.getSheetByName('Contrôle DNS').lignes(7)
+    .map(([domaine, element, statut, constat]) => ({ domaine, element, statut, constat }));
+const statutsDe = (p, domaine) => constatsDns(p).filter(c => c.domaine === domaine)
+    .map(c => `${c.element} : ${c.statut}`);
+
+test('contrôle DNS : un domaine sain est OK sur tous les points', () => {
+    const p = projetDns([['example.net']]);
+    // L'onglet Domaines de la v1.4.0 n'a pas la colonne selecteurs_dkim : elle est ajoutée.
+    assert.deepStrictEqual([...statutsDe((controler(p), p), 'example.net')],
+        ['DMARC : OK', 'DMARC rua : OK', 'SPF : OK', 'DKIM : OK']);
+    const c = constatsDns(p);
+    assert.match(c.find(x => x.element === 'SPF').constat, /^1 consultation\(s\) DNS sur 10/);
+    assert.match(c.find(x => x.element === 'DMARC rua').constat, /dmarc@example\.net, relevée par l'outil/);
+    assert.match(c.find(x => x.element === 'DKIM').constat, /Clé\(s\) publiée\(s\) : google\./);
+});
+
+test('contrôle DNS : chaque défaut connu est signalé, avec la marche à suivre', () => {
+    const p = projetDns([['mauvais.example'], ['double.example']]);
+    const r = controler(p);
+    const c = constatsDns(p);
+    const de = (d, el) => c.filter(x => x.domaine === d && x.element === el);
+    assert.match(de('mauvais.example', 'SPF').map(x => `${x.statut} ${x.constat}`).join(' | '),
+        /Problème au moins \d+ consultations DNS pour une limite de 10.*\| Attention Le mécanisme ptr.*\| Problème Le SPF se termine par \+all/);
+    assert.deepStrictEqual(de('mauvais.example', 'DMARC').map(x => x.statut), ['Info']);
+    assert.deepStrictEqual(de('mauvais.example', 'DMARC rua').map(x => x.statut), ['Problème', 'Problème'],
+        'rua non suivie par l\'outil, et domaine externe non autorisé');
+    assert.match(de('mauvais.example', 'DMARC rua')[1].constat, /prestataire\.example n'autorise pas/);
+    assert.deepStrictEqual(de('mauvais.example', 'DKIM').map(x => x.statut), ['Attention']);
+    assert.deepStrictEqual(de('double.example', 'DMARC').map(x => x.statut), ['Problème']);
+    assert.match(de('double.example', 'SPF')[0].constat, /^2 enregistrements SPF/);
+    assert.ok(r.problemes >= 6 && r.attentions >= 2, JSON.stringify(r));
+});
+
+test('contrôle DNS : une adresse rua externe autorisée est reconnue ; pct < 100 est signalé', () => {
+    const p = projetDns([['externe-ok.example']]);
+    controler(p);
+    const c = constatsDns(p).filter(x => x.domaine === 'externe-ok.example');
+    assert.match(c.find(x => x.element === 'DMARC').constat, /p=quarantine, appliquée à 50 %/);
+    assert.ok(c.some(x => x.element === 'DMARC rua' && x.statut === 'OK' && /autorise la réception/.test(x.constat)));
+});
+
+test('contrôle DNS : une panne donne « Non vérifié », jamais « Problème »', () => {
+    const p = projetDns([['example.net'], ['mauvais.example']]);
+    p.reseau.dnsEnPanne = true;
+    const r = controler(p);
+    assert.strictEqual(r.problemes, 0);
+    assert.ok(constatsDns(p).every(c => c.statut === 'Non vérifié'), JSON.stringify(constatsDns(p)));
+});
+
+test('contrôle DNS : les sélecteurs DKIM indiqués dans l\'onglet Domaines sont essayés', () => {
+    const p = projetDns([['example.net', 'monsel, autre']]);
+    controler(p);
+    assert.match(constatsDns(p).find(c => c.element === 'DKIM').constat, /^Clé\(s\) publiée\(s\) : monsel\./);
+    const q = projetDns([['mauvais.example', 'selector1']]);
+    controler(q);
+    const dkim = constatsDns(q).find(c => c.element === 'DKIM');
+    assert.strictEqual(dkim.statut, 'Problème');
+    assert.match(dkim.constat, /révoquée\(s\) : selector1/);
+});
+
+test('contrôle DNS : l\'onglet ne contient que des valeurs, colorées par statut, et se réécrit sans reste', () => {
+    const p = projetDns([['mauvais.example'], ['double.example']]);
+    controler(p);
+    const sh = p.classeur.getSheetByName('Contrôle DNS');
+    assert.strictEqual(sh.formules.size, 0);
+    assert.strictEqual(sh.fonds.get('2,3'), p.lire('COULEURS_STATUT_DNS')[sh.getRange(2, 3).getValues()[0][0]]);
+    const avant = sh.getLastRow();
+    // Lignes de Domaines : en-tête, adresse de l'outil, mauvais.example, double.example.
+    p.classeur.getSheetByName('Domaines').getRange(4, 1).setValues([['']]); // retire double.example
+    controler(p);
+    assert.ok(sh.getLastRow() < avant, 'des constats d\'un domaine retiré sont restés');
+    assert.ok(!sh.lignes(7).some(l => l[0] === 'double.example'));
+});
+
+test('contrôle DNS : refait une fois par jour par le traitement, et résumé dans le bilan', () => {
+    const p = projetDns([['example.net']]);
+    const premier = p.traiter();
+    assert.match(premier, /Contrôle DNS de 1 domaine\(s\) : 0 problème\(s\), 0 point\(s\) d'attention/);
+    assert.doesNotMatch(p.traiter(), /Contrôle DNS/, 'refait avant 24 h');
+});
+
+test('contrôle DNS par le menu : onglet affiché, résultat journalisé', () => {
+    const p = projetDns([['double.example']]);
+    p.lire('controlerDnsDepuisMenu()');
+    assert.strictEqual(p.classeur.active, p.classeur.getSheetByName('Contrôle DNS'));
+    assert.match(p.classeur.getSheetByName('Journal').lignes()[0][2], /^Contrôle DNS de 1 domaine\(s\) : 2 problème\(s\)/);
 });
 
 /* --------------------------------------------------------------------------

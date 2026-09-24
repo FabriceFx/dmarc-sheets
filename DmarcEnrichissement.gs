@@ -13,7 +13,7 @@
  * par formule : l'affichage suit l'IP de chaque ligne, quel que soit le filtre.
  */
 
-const TYPES_DNS_DMARC = Object.freeze({ A: 1, PTR: 12, AAAA: 28 });
+const TYPES_DNS_DMARC = Object.freeze({ A: 1, PTR: 12, TXT: 16, AAAA: 28 });
 
 const ENTETES_CACHE_IP = Object.freeze(['ip', 'affichage', 'statut', 'hote', 'operateur', 'mis_a_jour']);
 

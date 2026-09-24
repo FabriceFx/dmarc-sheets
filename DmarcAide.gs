@@ -82,8 +82,9 @@ const contenuAide_ = () => {
         ]],
         ['Les onglets de ce classeur', [
             [t.FEUILLE, 'Indicateurs, sources non conformes, graphiques.'],
-            [c.ONGLET_DOMAINES, 'VOS RÉGLAGES : adresses de réception des rapports (colonne adresse_rua) et domaines '
-                + 'dont les rapports sont acceptés (colonne domaine). Sans adresse, rien n\'est relevé.'],
+            [c.ONGLET_DOMAINES, 'VOS RÉGLAGES : adresses de réception des rapports (colonne adresse_rua), domaines '
+                + 'dont les rapports sont acceptés (colonne domaine) et, facultatif, sélecteurs DKIM de chaque domaine '
+                + '(colonne selecteurs_dkim) pour le contrôle DNS. Sans adresse, rien n\'est relevé.'],
             [c.ONGLET_PARAMETRES, 'VOS RÉGLAGES : seuils d\'alerte, durée de conservation, seuils du diagnostic. '
                 + 'Chaque ligne explique son effet ; une valeur hors bornes est refusée à la saisie.'],
             [c.ONGLET_JOURNAL, 'Le bilan de chaque passage, le plus récent en bas. Le premier endroit où regarder '
@@ -94,6 +95,9 @@ const contenuAide_ = () => {
             [c.ONGLET_ENREG, 'Une ligne par groupe de messages (IP source × résultat). Rempli par le script : '
                 + 'ne pas modifier.'],
             [t.DONNEES, 'Onglet masqué : les calculs du tableau de bord. Ne pas supprimer.'],
+            [c.ONGLET_DNS, 'Le contrôle des enregistrements DMARC, SPF et DKIM de chaque domaine, refait chaque '
+                + 'jour et à la demande (menu DMARC > Contrôler les enregistrements DNS). Un statut par point : OK, '
+                + 'Info, Attention, Problème ; « Non vérifié » quand le DNS n\'a pas répondu.'],
             [c.ONGLET_CACHE_IP, 'Onglet masqué : les noms d\'hôte déjà résolus, gardés '
                 + `${c.JOURS_VALIDITE_CACHE_IP} jours.`],
             [c.ONGLET_AIDE, 'Cet onglet. Régénéré par le script à chaque nouvelle version : vos modifications y seraient '
@@ -119,7 +123,7 @@ const contenuAide_ = () => {
             ['Guide complet', 'COMPRENDRE-DMARC.md, dans le dépôt du projet : exemples d\'enregistrements DNS, '
                 + 'rapport commenté, pièges fréquents, glossaire.'],
             ['Références', 'RFC 7489 (DMARC), RFC 7208 (SPF), RFC 6376 (DKIM), dmarc.org.'],
-            ['Auteur', 'Fabrice Faucheux — https://faucheux.bzh']
+            ['Auteur', `${PRODUIT_DMARC.AUTEUR} — ${PRODUIT_DMARC.SITE}`]
         ]]
     ];
 };

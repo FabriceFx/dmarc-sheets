@@ -14,7 +14,7 @@
  * on retire le libellé, le fil est retraité.
  */
 
-const ENTETES_DOMAINES = Object.freeze(['domaine', 'adresse_rua', 'commentaire']);
+const ENTETES_DOMAINES = Object.freeze(['domaine', 'adresse_rua', 'commentaire', 'selecteurs_dkim']);
 
 /** Largeur lue pour chercher les en-têtes : l'ordre des colonnes peut changer. */
 const LARGEUR_ENTETES_DOMAINES = 10;
@@ -45,7 +45,8 @@ const completerEntetesDomaines_ = (sh) => {
 
 /**
  * Lit l'onglet « Domaines », en le créant au besoin.
- * Rend `{ domaines, adresses, avertissements }`.
+ * Rend `{ domaines, adresses, selecteurs, avertissements }` ; `selecteurs` :
+ * domaine → sélecteurs DKIM indiqués dans la colonne selecteurs_dkim (v1.8.0).
  *
  * À la création, il est prérempli avec les domaines déjà présents dans
  * l'onglet Rapports, marqués « à vérifier » : sans cela, la mise à jour
@@ -91,7 +92,15 @@ const lireOngletDomaines_ = (ss) => {
                 + `valide. Corrigez-la dans l'onglet « ${CONFIG_DMARC.ONGLET_DOMAINES} ».`);
         });
     });
-    return { domaines, adresses: [...adresses].sort(), avertissements };
+    const colSelecteurs = entetes.indexOf('selecteurs_dkim');
+    const selecteurs = new Map();
+    lignes.forEach((l) => {
+        const d = String(l[colDomaine]).trim().toLowerCase().replace(/\.$/, '');
+        const s = String(colSelecteurs < 0 ? '' : l[colSelecteurs]).split(/[,;\s]+/)
+            .map(x => x.trim().toLowerCase()).filter(x => /^[a-z0-9._-]+$/.test(x));
+        if (d && s.length) selecteurs.set(d, [...new Set([...(selecteurs.get(d) || []), ...s])]);
+    });
+    return { domaines, adresses: [...adresses].sort(), selecteurs, avertissements };
 };
 
 /**
